@@ -1,0 +1,25 @@
+{
+  "name": "Hermes",
+  "short_name": "Hermes",
+  "description": "Hermes Agent on your phone — same desktop UI, adapted for touch.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0d2f86",
+  "theme_color": "#0d2f86",
+  "icons": [
+    {
+      "src": "/icon.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "name": "hermes-mobile",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Mobile web bridge for Hermes Desktop using same-origin proxying and optional Tailscale binding.",
+  "scripts": {
+    "dev": "node server/index.mjs",
+    "start": "node server/index.mjs"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

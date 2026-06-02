@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#f8faff" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0d2f86" media="(prefers-color-scheme: dark)" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Hermes" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/icon.png" />
+    <link rel="icon" href="/icon.png" type="image/png" />
+    <link rel="stylesheet" href="/styles.css" />
+    <title>Hermes</title>
+    <script>
+      // Apply persisted/preferred theme before first paint to avoid a flash.
+      ;(function () {
+        try {
+          var stored = localStorage.getItem('hermes-mobile-mode')
+          var systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+          var dark = stored ? stored === 'dark' : systemDark
+          if (dark) document.documentElement.classList.add('dark')
+        } catch (e) {}
+      })()
+    </script>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>
