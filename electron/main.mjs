@@ -118,7 +118,22 @@ async function serveStatus() {
 }
 
 async function configureServe() {
-  return execTailscale(['serve', '--bg', 'https', '/', DEFAULT_BRIDGE_URL], { timeout: 20_000 })
+  const current = await execTailscale(['serve', '--bg', DEFAULT_BRIDGE_URL], { timeout: 20_000 })
+
+  if (current.ok) {
+    return current
+  }
+
+  const legacy = await execTailscale(['serve', '--bg', 'https', '/', DEFAULT_BRIDGE_URL], { timeout: 20_000 })
+
+  if (legacy.ok) {
+    return legacy
+  }
+
+  return {
+    ...current,
+    error: [current.stderr || current.error, legacy.stderr || legacy.error].filter(Boolean).join('\n')
+  }
 }
 
 async function writeBackendDescriptor({ baseUrl, token }) {
