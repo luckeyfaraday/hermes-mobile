@@ -413,67 +413,98 @@ function makeResolver(resolve, label) {
 const getBackend = makeResolver(resolveBackend, 'backend')
 const getControl = makeResolver(resolveControl, 'control')
 
-const host = resolveHost()
-const port = Number.parseInt(process.env.HERMES_MOBILE_PORT || process.env.PORT || String(DEFAULT_PORT), 10)
+function createRequestHandler({ host, port }) {
+  return async (req, res) => {
+    try {
+      const url = new URL(req.url, 'http://local.invalid')
 
-if (!Number.isFinite(port) || port <= 0 || port > 65535) {
-  throw new Error(`Invalid HERMES_MOBILE_PORT: ${process.env.HERMES_MOBILE_PORT}`)
+      if (url.pathname === '/mobile-api/status') {
+        sendJson(res, 200, {
+          app: 'hermes-mobile',
+          bind: { host, port, tailscaleIp: findTailscaleIp() },
+          backend: publicServiceDescriptor(getBackend()),
+          control: publicServiceDescriptor(getControl())
+        })
+        return
+      }
+
+      if (url.pathname === '/mobile-api/backend-status') {
+        sendJson(res, 200, await proxyBackendFetch('/api/status', getBackend()))
+        return
+      }
+
+      if (url.pathname.startsWith(`${PROXY_PREFIX}/`) || url.pathname === PROXY_PREFIX) {
+        proxyToService(req, res, getBackend(), PROXY_PREFIX, 'backend')
+        return
+      }
+
+      if (url.pathname.startsWith(`${CONTROL_PROXY_PREFIX}/`) || url.pathname === CONTROL_PROXY_PREFIX) {
+        proxyToService(req, res, getControl(), CONTROL_PROXY_PREFIX, 'control')
+        return
+      }
+
+      serveStatic(req, res)
+    } catch (error) {
+      sendJson(res, 500, { error: error instanceof Error ? error.message : String(error) })
+    }
+  }
 }
 
-const server = http.createServer(async (req, res) => {
-  try {
-    const url = new URL(req.url, 'http://local.invalid')
+export function startHermesMobileServer(options = {}) {
+  const host = options.host || resolveHost()
+  const port = Number.parseInt(String(options.port || process.env.HERMES_MOBILE_PORT || process.env.PORT || DEFAULT_PORT), 10)
 
-    if (url.pathname === '/mobile-api/status') {
-      sendJson(res, 200, {
-        app: 'hermes-mobile',
-        bind: { host, port, tailscaleIp: findTailscaleIp() },
-        backend: publicServiceDescriptor(getBackend()),
-        control: publicServiceDescriptor(getControl())
+  if (!Number.isFinite(port) || port <= 0 || port > 65535) {
+    throw new Error(`Invalid HERMES_MOBILE_PORT: ${process.env.HERMES_MOBILE_PORT}`)
+  }
+
+  const server = http.createServer(createRequestHandler({ host, port }))
+
+  return new Promise((resolve, reject) => {
+    const handleListenError = error => {
+      if (error.code === 'EADDRNOTAVAIL' && host !== DEFAULT_HOST) {
+        console.error(`[hermes-mobile] Cannot bind ${host}:${port}. Is that interface still available?`)
+      }
+
+      reject(error)
+    }
+
+    server.once('error', handleListenError)
+    server.listen({ host, port }, () => {
+      server.off('error', handleListenError)
+      server.on('error', error => {
+        console.error(error instanceof Error ? error.message : String(error))
       })
-      return
-    }
 
-    if (url.pathname === '/mobile-api/backend-status') {
-      sendJson(res, 200, await proxyBackendFetch('/api/status', getBackend()))
-      return
-    }
+      const family = net.isIPv6(host) ? `[${host}]` : host
+      const backend = getBackend()
+      const control = getControl()
+      const url = `http://${family}:${port}`
 
-    if (url.pathname.startsWith(`${PROXY_PREFIX}/`) || url.pathname === PROXY_PREFIX) {
-      proxyToService(req, res, getBackend(), PROXY_PREFIX, 'backend')
-      return
-    }
+      console.log(`[hermes-mobile] listening on ${url}`)
+      console.log(`[hermes-mobile] backend ${backend ? `${backend.baseUrl} (${publicServiceSource(backend)})` : 'not configured'}`)
+      console.log(`[hermes-mobile] control ${control ? `${control.baseUrl} (${publicServiceSource(control)})` : 'not configured'}`)
+      console.log('[hermes-mobile] backend re-resolves per request — update a descriptor to follow a Hermes restart without restarting the bridge.')
 
-    if (url.pathname.startsWith(`${CONTROL_PROXY_PREFIX}/`) || url.pathname === CONTROL_PROXY_PREFIX) {
-      proxyToService(req, res, getControl(), CONTROL_PROXY_PREFIX, 'control')
-      return
-    }
+      if (host === DEFAULT_HOST) {
+        console.log('[hermes-mobile] Tailscale HTTPS production pattern:')
+        console.log(`  tailscale serve --bg https / http://${DEFAULT_HOST}:${port}`)
+      }
 
-    serveStatic(req, res)
+      resolve({ server, host, port, url })
+    })
+  })
+}
+
+async function runCli() {
+  try {
+    await startHermesMobileServer()
   } catch (error) {
-    sendJson(res, 500, { error: error instanceof Error ? error.message : String(error) })
+    console.error(error instanceof Error ? error.message : String(error))
+    process.exitCode = 1
   }
-})
+}
 
-server.on('error', error => {
-  if (error.code === 'EADDRNOTAVAIL' && host !== DEFAULT_HOST) {
-    console.error(`[hermes-mobile] Cannot bind ${host}:${port}. Is that interface still available?`)
-  }
-
-  throw error
-})
-
-server.listen({ host, port }, () => {
-  const family = net.isIPv6(host) ? `[${host}]` : host
-  const backend = getBackend()
-  const control = getControl()
-  console.log(`[hermes-mobile] listening on http://${family}:${port}`)
-  console.log(`[hermes-mobile] backend ${backend ? `${backend.baseUrl} (${publicServiceSource(backend)})` : 'not configured'}`)
-  console.log(`[hermes-mobile] control ${control ? `${control.baseUrl} (${publicServiceSource(control)})` : 'not configured'}`)
-  console.log('[hermes-mobile] backend re-resolves per request — update a descriptor to follow a Hermes restart without restarting the bridge.')
-
-  if (host === DEFAULT_HOST) {
-    console.log('[hermes-mobile] Tailscale HTTPS production pattern:')
-    console.log(`  tailscale serve --bg https / http://${DEFAULT_HOST}:${port}`)
-  }
-})
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  runCli()
+}

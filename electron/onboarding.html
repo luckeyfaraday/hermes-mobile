@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Hermes Mobile Host</title>
+    <link rel="stylesheet" href="./onboarding.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <section class="top">
+        <div>
+          <p class="eyebrow">Hermes Mobile Host</p>
+          <h1>Setup Mobile Access</h1>
+        </div>
+        <button id="refresh" class="icon-button" type="button" title="Refresh status" aria-label="Refresh status">
+          <span aria-hidden="true">↻</span>
+        </button>
+      </section>
+
+      <section class="status-grid" aria-live="polite">
+        <article class="status-panel">
+          <div class="status-head">
+            <span class="status-dot" id="bridge-dot"></span>
+            <h2>Bridge</h2>
+          </div>
+          <p id="bridge-text">Checking local host...</p>
+        </article>
+
+        <article class="status-panel">
+          <div class="status-head">
+            <span class="status-dot" id="backend-dot"></span>
+            <h2>Hermes</h2>
+          </div>
+          <p id="backend-text">Checking API server...</p>
+        </article>
+
+        <article class="status-panel">
+          <div class="status-head">
+            <span class="status-dot" id="tailscale-dot"></span>
+            <h2>Tailscale</h2>
+          </div>
+          <p id="tailscale-text">Checking device state...</p>
+        </article>
+      </section>
+
+      <section class="workspace">
+        <form id="backend-form" class="setup-pane">
+          <div class="section-title">
+            <h2>Hermes Backend</h2>
+            <span id="descriptor-path"></span>
+          </div>
+          <label>
+            <span>API server URL</span>
+            <input id="backend-url" name="baseUrl" autocomplete="off" value="http://127.0.0.1:8642" />
+          </label>
+          <label>
+            <span>API server key</span>
+            <input id="backend-token" name="token" type="password" autocomplete="off" />
+          </label>
+          <div class="actions">
+            <button class="primary" type="submit">Save Backend</button>
+          </div>
+        </form>
+
+        <section class="setup-pane">
+          <div class="section-title">
+            <h2>Phone Access</h2>
+            <span id="serve-state"></span>
+          </div>
+          <div class="phone-output">
+            <div id="qr-wrap" class="qr-wrap">
+              <div class="qr-empty">No URL yet</div>
+            </div>
+            <div class="url-block">
+              <p id="phone-url">Connect Tailscale to get a phone URL.</p>
+              <div class="actions">
+                <button id="configure-serve" class="primary" type="button">Configure HTTPS</button>
+                <button id="open-url" type="button">Open</button>
+                <button id="tailscale-download" type="button">Get Tailscale</button>
+              </div>
+            </div>
+          </div>
+        </section>
+      </section>
+
+      <section class="log-pane">
+        <h2>Setup Log</h2>
+        <pre id="log"></pre>
+      </section>
+    </main>
+    <script src="./onboarding.js"></script>
+  </body>
+</html>

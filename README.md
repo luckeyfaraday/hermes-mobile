@@ -21,6 +21,34 @@ The front-end (`public/`) is a no-build PWA that mirrors the Hermes **desktop** 
 
 No bundler is involved — the bridge serves `public/` directly. UI glyphs are inline SVG and markdown is rendered client-side, so the shell works offline once cached. The app/PWA icon is the shared Hermes brand mark copied from `apps/desktop/assets/icon.png`.
 
+## Desktop Host
+
+Hermes Mobile can also run as **Hermes Mobile Host**, a small Electron companion app that starts the same loopback bridge, guides backend setup, checks Tailscale, configures Tailscale Serve, and shows the phone URL + QR code.
+
+Development:
+
+```bash
+npm install
+npm run electron:dev
+```
+
+Package targets are configured with Electron Builder:
+
+```bash
+npm run pack   # unpacked local app for smoke testing
+npm run dist   # Linux AppImage/deb, macOS dmg/zip, Windows nsis installer
+```
+
+Configured public artifacts:
+
+```text
+Linux:   AppImage, deb
+macOS:   dmg, zip
+Windows: nsis .exe installer
+```
+
+The desktop host does **not** bundle Tailscale. It detects the local `tailscale` CLI, opens the official download page when missing, and runs `tailscale serve --bg https / http://127.0.0.1:5274` once the user is connected.
+
 ## Run
 
 ```bash
