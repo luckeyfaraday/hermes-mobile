@@ -1,8 +1,8 @@
 # Hermes Mobile
 
-Mobile web bridge for Hermes. It follows the Athena Mobile Tailscale pattern: bind locally by default, optionally bind directly to a Tailscale CGNAT address for dev, and keep backend tokens inside the Node server.
+Mobile web bridge for Hermes. It binds locally by default, can bind directly to a Tailscale CGNAT address for development, and keeps backend tokens inside the Node server.
 
-The bridge is a thin, transparent reverse proxy. It targets the gateway's **`api_server` platform** (`gateway/platforms/api_server.py`) — the REST + SSE chat API — **not** the desktop app and **not** the dashboard's WebSocket JSON-RPC. Every `/hermes-backend/*` request (session list/create and the `chat/stream` SSE) is piped straight through with a server-injected `API_SERVER_KEY`; the front-end (`public/app.js`) consumes the api_server's native SSE (`event:`-keyed `run.started` / `assistant.delta` / `tool.*` / `assistant.completed` / `done`) directly, so the bridge does no event translation.
+The bridge is a thin, transparent reverse proxy. It targets the Hermes gateway's **`api_server` platform** — the REST + SSE chat API — **not** the desktop app and **not** the dashboard's WebSocket JSON-RPC. Every `/hermes-backend/*` request (session list/create and the `chat/stream` SSE) is piped straight through with a server-injected `API_SERVER_KEY`; the front-end (`public/app.js`) consumes the api_server's native SSE (`event:`-keyed `run.started` / `assistant.delta` / `tool.*` / `assistant.completed` / `done`) directly, so the bridge does no event translation.
 
 Enable the platform on the gateway by setting `API_SERVER_KEY` (and optionally `API_SERVER_PORT`, default `8642`; `API_SERVER_HOST`, default `127.0.0.1`) in `~/.hermes/.env`, then `hermes gateway restart`. The key is required even on loopback binds.
 
@@ -24,7 +24,7 @@ No bundler is involved — the bridge serves `public/` directly. UI glyphs are i
 ## Run
 
 ```bash
-cd apps/desktop/hermes-mobile
+cd hermes-mobile
 HERMES_MOBILE_BACKEND_URL=http://127.0.0.1:8642 \
 HERMES_MOBILE_BACKEND_TOKEN="$API_SERVER_KEY" \
 npm run dev
@@ -85,8 +85,6 @@ The bridge **re-resolves its backend descriptor on every request** (cached ~2s).
 
 > Env config (`HERMES_MOBILE_BACKEND_URL`) is intentionally *constant* — it pins the bridge. To get live-follow, run in **descriptor mode**: start the bridge without `HERMES_MOBILE_BACKEND_URL` so it reads the descriptor files above.
 
-> **Note:** `scripts/sync-backend.mjs` (`npm run sync`) predates this and scrapes the **dashboard's** rotating token on `:9119` — that is the *wrong* server for the chat API (the dashboard's `web_server.py` has no `chat/stream` route). It is not needed for the `api_server` flow; write the static descriptor above instead.
-
 ## Control Proxy
 
 Optional control-server descriptors use the same shape and are exposed at `/hermes-control/*`:
@@ -107,4 +105,10 @@ HERMES_MOBILE_CONTROL_TOKEN=...
 
 ## Notes
 
-Hermes Desktop's Electron process creates its local dashboard token in memory, and the desktop talks to its dashboard over WebSocket JSON-RPC (`/api/ws`). The mobile bridge deliberately does **not** ride on that: it connects to the standalone gateway `api_server` platform over plain REST + SSE, authenticated by the static `API_SERVER_KEY`. That keeps mobile decoupled from whether the desktop app is open and from the dashboard's rotating token. The same `api_server` is what other external REST clients use (e.g. `scripts/setup_open_webui.sh`).
+Hermes Desktop's Electron process creates its local dashboard token in memory, and the desktop talks to its dashboard over WebSocket JSON-RPC (`/api/ws`). The mobile bridge deliberately does **not** ride on that: it connects to the standalone gateway `api_server` platform over plain REST + SSE, authenticated by the static `API_SERVER_KEY`. That keeps mobile decoupled from whether the desktop app is open and from the dashboard's rotating token.
+
+## Public Release Checklist
+
+- Do not commit `.env` files or backend descriptors; they can contain API keys.
+- Keep the bridge bound to `127.0.0.1` for production and expose it through HTTPS using a trusted tunnel such as Tailscale Serve.
+- The package is marked `private` and `UNLICENSED` to prevent accidental npm publishing and to avoid implying reuse rights without an explicit license.

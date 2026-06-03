@@ -4,12 +4,19 @@
   "version": "0.1.0",
   "type": "module",
   "description": "Mobile web bridge for Hermes Desktop using same-origin proxying and optional Tailscale binding.",
+  "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/luckeyfaraday/hermes-mobile.git"
+  },
+  "bugs": {
+    "url": "https://github.com/luckeyfaraday/hermes-mobile/issues"
+  },
+  "homepage": "https://github.com/luckeyfaraday/hermes-mobile#readme",
   "scripts": {
     "dev": "node server/index.mjs",
     "start": "node server/index.mjs",
-    "test": "node --test public/app-stream.test.mjs",
-    "sync": "node scripts/sync-backend.mjs",
-    "sync:watch": "node scripts/sync-backend.mjs --watch"
+    "test": "node --test public/app-stream.test.mjs"
   },
   "engines": {
     "node": ">=20.0.0"

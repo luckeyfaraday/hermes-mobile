@@ -199,14 +199,6 @@ function normalizeBaseUrl(value) {
   return url.toString().replace(/\/$/, '')
 }
 
-function tokenPreview(token) {
-  if (!token) {
-    return null
-  }
-
-  return token.length <= 10 ? 'set' : `${token.slice(0, 4)}...${token.slice(-4)}`
-}
-
 function sendJson(res, status, payload) {
   const body = JSON.stringify(payload, null, 2)
   res.writeHead(status, {
@@ -218,12 +210,20 @@ function sendJson(res, status, payload) {
 }
 
 function safeStaticPath(urlPath) {
-  const decodedPath = decodeURIComponent(urlPath)
-  const normalized = path.normalize(decodedPath).replace(/^(\.\.[/\\])+/, '')
-  const target = path.join(PUBLIC_DIR, normalized === '/' ? 'index.html' : normalized)
-  const resolved = path.resolve(target)
+  let decodedPath
 
-  if (!resolved.startsWith(PUBLIC_DIR)) {
+  try {
+    decodedPath = decodeURIComponent(urlPath)
+  } catch {
+    return null
+  }
+
+  const normalized = path.normalize(decodedPath).replace(/^[/\\]+/, '').replace(/^(\.\.[/\\])+/, '')
+  const target = path.resolve(PUBLIC_DIR, normalized || 'index.html')
+  const resolved = path.resolve(target)
+  const relative = path.relative(PUBLIC_DIR, resolved)
+
+  if (relative.startsWith('..') || path.isAbsolute(relative)) {
     return null
   }
 
@@ -269,8 +269,12 @@ function serveStatic(req, res) {
 
 function publicServiceDescriptor(service) {
   return service
-    ? { baseUrl: service.baseUrl, source: service.source, token: tokenPreview(service.token) }
+    ? { baseUrl: service.baseUrl, source: publicServiceSource(service), tokenConfigured: Boolean(service.token) }
     : { configured: false }
+}
+
+function publicServiceSource(service) {
+  return service.source === 'env' ? 'env' : 'descriptor'
 }
 
 // Transparent reverse proxy to the resolved Hermes backend. The browser never
@@ -399,7 +403,7 @@ function makeResolver(resolve, label) {
 
     if (key !== lastKey) {
       lastKey = key
-      console.log(`[hermes-mobile] ${label} → ${value ? `${value.baseUrl} (${value.source})` : 'not configured'}`)
+      console.log(`[hermes-mobile] ${label} → ${value ? `${value.baseUrl} (${publicServiceSource(value)})` : 'not configured'}`)
     }
 
     return value
@@ -464,8 +468,8 @@ server.listen({ host, port }, () => {
   const backend = getBackend()
   const control = getControl()
   console.log(`[hermes-mobile] listening on http://${family}:${port}`)
-  console.log(`[hermes-mobile] backend ${backend ? `${backend.baseUrl} (${backend.source})` : 'not configured'}`)
-  console.log(`[hermes-mobile] control ${control ? `${control.baseUrl} (${control.source})` : 'not configured'}`)
+  console.log(`[hermes-mobile] backend ${backend ? `${backend.baseUrl} (${publicServiceSource(backend)})` : 'not configured'}`)
+  console.log(`[hermes-mobile] control ${control ? `${control.baseUrl} (${publicServiceSource(control)})` : 'not configured'}`)
   console.log('[hermes-mobile] backend re-resolves per request — update a descriptor to follow a Hermes restart without restarting the bridge.')
 
   if (host === DEFAULT_HOST) {
