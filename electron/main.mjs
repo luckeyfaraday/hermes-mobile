@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, shell } from 'electron'
+import { app, BrowserWindow, ipcMain, nativeTheme, shell } from 'electron'
 import { execFile } from 'node:child_process'
 import fs from 'node:fs/promises'
 import os from 'node:os'
@@ -118,7 +118,22 @@ async function serveStatus() {
 }
 
 async function configureServe() {
-  return execTailscale(['serve', '--bg', 'https', '/', DEFAULT_BRIDGE_URL], { timeout: 20_000 })
+  const current = await execTailscale(['serve', '--bg', DEFAULT_BRIDGE_URL], { timeout: 20_000 })
+
+  if (current.ok) {
+    return current
+  }
+
+  const legacy = await execTailscale(['serve', '--bg', 'https', '/', DEFAULT_BRIDGE_URL], { timeout: 20_000 })
+
+  if (legacy.ok) {
+    return legacy
+  }
+
+  return {
+    ...current,
+    error: [current.stderr || current.error, legacy.stderr || legacy.error].filter(Boolean).join('\n')
+  }
 }
 
 async function writeBackendDescriptor({ baseUrl, token }) {
@@ -180,7 +195,9 @@ async function createMainWindow() {
     minWidth: 760,
     minHeight: 560,
     title: 'Hermes Mobile Host',
-    backgroundColor: '#f7f7f3',
+    // Matches the onboarding chrome surface (--ui-bg-chrome) per theme so the
+    // window doesn't flash a mismatched color before the stylesheet paints.
+    backgroundColor: nativeTheme.shouldUseDarkColors ? '#0d2667' : '#f7f9fe',
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
