@@ -14,8 +14,6 @@ const DEFAULT_PORT = 5274
 const DEFAULT_HOST = '127.0.0.1'
 const PROXY_PREFIX = '/hermes-backend'
 const CONTROL_PROXY_PREFIX = '/hermes-control'
-const GATEWAY_REQUEST_TIMEOUT_MS = 30_000
-const MOBILE_SESSION_IDLE_MS = 60 * 60 * 1000
 
 const MIME_TYPES = new Map([
   ['.css', 'text/css; charset=utf-8'],
@@ -219,399 +217,6 @@ function sendJson(res, status, payload) {
   res.end(body)
 }
 
-function readRequestJson(req, limit = 1_000_000) {
-  return new Promise((resolve, reject) => {
-    let size = 0
-    const chunks = []
-
-    req.on('data', chunk => {
-      size += chunk.length
-
-      if (size > limit) {
-        reject(new Error('Request body too large'))
-        req.destroy()
-        return
-      }
-
-      chunks.push(chunk)
-    })
-
-    req.on('error', reject)
-    req.on('end', () => {
-      const text = Buffer.concat(chunks).toString('utf8').trim()
-
-      if (!text) {
-        resolve({})
-        return
-      }
-
-      try {
-        resolve(JSON.parse(text))
-      } catch {
-        reject(new Error('Invalid JSON body'))
-      }
-    })
-  })
-}
-
-function buildBackendWsUrl(backend) {
-  const target = new URL('/api/ws', backend.baseUrl)
-  target.protocol = target.protocol === 'https:' ? 'wss:' : 'ws:'
-
-  if (backend.token) {
-    target.searchParams.set('token', backend.token)
-  }
-
-  return target.toString()
-}
-
-function connectGateway(backend) {
-  if (!backend) {
-    return Promise.reject(new Error('Hermes backend is not configured'))
-  }
-
-  if (typeof WebSocket !== 'function') {
-    return Promise.reject(new Error('This Node runtime does not provide WebSocket support. Use Node 22 or newer.'))
-  }
-
-  const socket = new WebSocket(buildBackendWsUrl(backend))
-  let nextId = 0
-  const pending = new Map()
-  const eventHandlers = new Set()
-
-  const cleanupPending = (error = new Error('Hermes gateway connection closed')) => {
-    for (const [id, call] of pending) {
-      clearTimeout(call.timer)
-      call.reject(error)
-      pending.delete(id)
-    }
-  }
-
-  const opened = new Promise((resolve, reject) => {
-    socket.addEventListener('open', () => resolve(), { once: true })
-    socket.addEventListener('error', () => reject(new Error('Could not connect to Hermes gateway')), { once: true })
-  })
-
-  socket.addEventListener('message', message => {
-    let frame
-
-    try {
-      frame = JSON.parse(typeof message.data === 'string' ? message.data : String(message.data))
-    } catch {
-      return
-    }
-
-    if (frame.id !== undefined && frame.id !== null) {
-      const call = pending.get(frame.id)
-
-      if (!call) {
-        return
-      }
-
-      clearTimeout(call.timer)
-      pending.delete(frame.id)
-
-      if (frame.error) {
-        call.reject(new Error(frame.error.message || 'Hermes RPC failed'))
-      } else {
-        call.resolve(frame.result)
-      }
-
-      return
-    }
-
-    if (frame.method === 'event' && frame.params?.type) {
-      for (const handler of eventHandlers) {
-        handler(frame.params)
-      }
-    }
-  })
-
-  socket.addEventListener('close', () => cleanupPending())
-
-  return opened.then(() => ({
-    close() {
-      cleanupPending()
-      socket.close()
-    },
-    onEvent(handler) {
-      eventHandlers.add(handler)
-      return () => eventHandlers.delete(handler)
-    },
-    request(method, params = {}, timeoutMs = GATEWAY_REQUEST_TIMEOUT_MS) {
-      const id = ++nextId
-
-      return new Promise((resolve, reject) => {
-        const timer = setTimeout(() => {
-          pending.delete(id)
-          reject(new Error(`request timed out: ${method}`))
-        }, timeoutMs)
-
-        pending.set(id, { reject, resolve, timer })
-        socket.send(JSON.stringify({ jsonrpc: '2.0', id, method, params }))
-      })
-    }
-  }))
-}
-
-const mobileSessions = new Map()
-
-function rememberMobileSession(sessionId, gateway, storedSessionId = null, runtimeSessionId = sessionId) {
-  const existing = mobileSessions.get(sessionId)
-
-  if (existing?.gateway && existing.gateway !== gateway) {
-    existing.gateway.close()
-  }
-
-  mobileSessions.set(sessionId, {
-    gateway,
-    lastUsedAt: Date.now(),
-    runtimeSessionId,
-    storedSessionId
-  })
-}
-
-function touchMobileSession(sessionId) {
-  const session = mobileSessions.get(sessionId)
-
-  if (session) {
-    session.lastUsedAt = Date.now()
-  }
-
-  return session
-}
-
-function pruneMobileSessions() {
-  const cutoff = Date.now() - MOBILE_SESSION_IDLE_MS
-
-  for (const [sessionId, session] of mobileSessions) {
-    if (session.lastUsedAt < cutoff) {
-      session.gateway.close()
-      mobileSessions.delete(sessionId)
-    }
-  }
-}
-
-async function createMobileSession(req, res, backend) {
-  if (!backend) {
-    sendJson(res, 503, { error: 'Hermes backend is not configured' })
-    return true
-  }
-
-  let gateway
-
-  try {
-    const body = await readRequestJson(req)
-    gateway = await connectGateway(backend)
-    const created = await gateway.request('session.create', {
-      cols: 96,
-      ...(typeof body.cwd === 'string' && body.cwd.trim() ? { cwd: body.cwd.trim() } : {})
-    })
-    const sessionId = created?.session_id
-
-    if (!sessionId) {
-      throw new Error('Hermes gateway did not return a session id')
-    }
-
-    rememberMobileSession(sessionId, gateway, created.stored_session_id ?? null)
-    gateway = null
-
-    sendJson(res, 200, {
-      id: sessionId,
-      session: {
-        id: sessionId,
-        title: typeof body.title === 'string' && body.title.trim() ? body.title.trim() : 'Mobile chat'
-      },
-      session_id: sessionId,
-      stored_session_id: created.stored_session_id ?? null
-    })
-  } catch (error) {
-    sendJson(res, 500, { error: error instanceof Error ? error.message : String(error) })
-  } finally {
-    gateway?.close()
-  }
-
-  return true
-}
-
-async function createGatewaySession(backend, aliasSessionId = null) {
-  const gateway = await connectGateway(backend)
-
-  try {
-    const created = await gateway.request('session.create', { cols: 96 })
-    const runtimeSessionId = created?.session_id
-
-    if (!runtimeSessionId) {
-      throw new Error('Hermes gateway did not return a session id')
-    }
-
-    rememberMobileSession(aliasSessionId || runtimeSessionId, gateway, created.stored_session_id ?? null, runtimeSessionId)
-
-    return touchMobileSession(aliasSessionId || runtimeSessionId)
-  } catch (error) {
-    gateway.close()
-    throw error
-  }
-}
-
-function writeSse(res, event, data) {
-  res.write(`event: ${event}\n`)
-  res.write(`data: ${JSON.stringify(data)}\n\n`)
-}
-
-function gatewayEventToSse(event) {
-  const payload = event.payload || {}
-
-  switch (event.type) {
-    case 'message.delta':
-      return ['assistant.delta', { delta: payload.text ?? payload.delta ?? '' }]
-    case 'reasoning.delta':
-    case 'reasoning.available':
-      return ['tool.progress', { delta: payload.text ?? payload.delta ?? '', tool_name: '_thinking' }]
-    case 'tool.start':
-    case 'tool.generating':
-      return [
-        'tool.started',
-        {
-          args: payload.args ?? payload.input,
-          preview: payload.preview ?? payload.text,
-          tool_name: payload.tool_name ?? payload.name ?? payload.tool_id ?? 'tool'
-        }
-      ]
-    case 'tool.progress':
-      return [
-        'tool.progress',
-        {
-          delta: payload.delta ?? payload.text ?? payload.preview ?? '',
-          tool_name: payload.tool_name ?? payload.name ?? payload.tool_id ?? 'tool'
-        }
-      ]
-    case 'tool.complete':
-      return [
-        'tool.completed',
-        {
-          preview: payload.preview ?? payload.text ?? payload.result,
-          tool_name: payload.tool_name ?? payload.name ?? payload.tool_id ?? 'tool'
-        }
-      ]
-    case 'message.complete':
-      return ['assistant.completed', { content: payload.text ?? payload.rendered ?? payload.content ?? '' }]
-    case 'error':
-      return ['error', { message: payload.message ?? payload.error ?? 'Hermes stream failed' }]
-    default:
-      return null
-  }
-}
-
-async function streamMobileChat(req, res, backend, sessionId) {
-  if (!backend) {
-    sendJson(res, 503, { error: 'Hermes backend is not configured' })
-    return true
-  }
-
-  let body
-
-  try {
-    body = await readRequestJson(req)
-  } catch (error) {
-    sendJson(res, 400, { error: error instanceof Error ? error.message : String(error) })
-    return true
-  }
-
-  const text = typeof body.message === 'string' ? body.message.trim() : typeof body.text === 'string' ? body.text.trim() : ''
-
-  if (!text) {
-    sendJson(res, 400, { error: 'Message is required' })
-    return true
-  }
-
-  const session = touchMobileSession(sessionId) || (await createGatewaySession(backend, sessionId))
-  const gateway = session?.gateway
-  const runtimeSessionId = session?.runtimeSessionId || sessionId
-  let settled = false
-
-  res.writeHead(200, {
-    'Cache-Control': 'no-cache, no-transform',
-    Connection: 'keep-alive',
-    'Content-Type': 'text/event-stream; charset=utf-8',
-    'X-Accel-Buffering': 'no'
-  })
-
-  if (!gateway) {
-    writeSse(res, 'error', { message: 'session not found. Start a new mobile chat and try again.' })
-    writeSse(res, 'done', { ok: false })
-    res.end()
-    return true
-  }
-
-  const finish = () => {
-    if (settled) {
-      return
-    }
-
-    settled = true
-    writeSse(res, 'done', { ok: true })
-    res.end()
-  }
-
-  let removeEventHandler = null
-
-  req.on('close', () => {
-    settled = true
-    removeEventHandler?.()
-  })
-
-  try {
-    removeEventHandler = gateway.onEvent(event => {
-      if (settled || (event.session_id && event.session_id !== runtimeSessionId)) {
-        return
-      }
-
-      touchMobileSession(sessionId)
-      const mapped = gatewayEventToSse(event)
-
-      if (!mapped) {
-        return
-      }
-
-      writeSse(res, mapped[0], mapped[1])
-
-      if (event.type === 'message.complete' || event.type === 'error') {
-        removeEventHandler?.()
-        finish()
-      }
-    })
-
-    writeSse(res, 'run.started', { session_id: sessionId })
-    await gateway.request('prompt.submit', { session_id: runtimeSessionId, text })
-  } catch (error) {
-    removeEventHandler?.()
-    if (!settled) {
-      writeSse(res, 'error', { message: error instanceof Error ? error.message : String(error) })
-      finish()
-    }
-  }
-
-  return true
-}
-
-async function handleMobileBackendCompat(req, res, backend) {
-  const url = new URL(req.url, 'http://local.invalid')
-  const suffix = url.pathname.slice(PROXY_PREFIX.length)
-
-  if (req.method === 'POST' && suffix === '/api/sessions') {
-    return createMobileSession(req, res, backend)
-  }
-
-  const chatMatch = suffix.match(/^\/api\/sessions\/([^/]+)\/chat\/stream$/)
-
-  if (req.method === 'POST' && chatMatch) {
-    return streamMobileChat(req, res, backend, decodeURIComponent(chatMatch[1]))
-  }
-
-  return false
-}
-
 function safeStaticPath(urlPath) {
   const decodedPath = decodeURIComponent(urlPath)
   const normalized = path.normalize(decodedPath).replace(/^(\.\.[/\\])+/, '')
@@ -668,6 +273,16 @@ function publicServiceDescriptor(service) {
     : { configured: false }
 }
 
+// Transparent reverse proxy to the resolved Hermes backend. The browser never
+// sees the token; we strip any client-supplied auth and inject the descriptor's
+// key as `Authorization: Bearer …` + `X-Hermes-Session-Token` server-side.
+//
+// Every `/hermes-backend/*` request — including `POST /api/sessions` and the
+// `POST /api/sessions/{id}/chat/stream` SSE stream — flows through here to the
+// gateway's api_server platform (gateway/platforms/api_server.py), which serves
+// the REST + SSE contract the front-end (`public/app.js`) is written against.
+// The response (text/event-stream included) is piped straight back, so no
+// event translation lives in the bridge.
 function proxyToService(req, res, service, prefix, name) {
   if (!service) {
     sendJson(res, 503, {
@@ -687,6 +302,15 @@ function proxyToService(req, res, service, prefix, name) {
   delete headers.authorization
   delete headers['x-hermes-session-token']
   delete headers['content-length']
+  // This bridge is a server-side proxy client, not a browser, and the
+  // browser→bridge hop is same-origin — so the upstream must not treat us as a
+  // cross-origin browser. The gateway api_server's CORS guard returns 403 for
+  // any forwarded `Origin` when API_SERVER_CORS_ORIGINS is unset, which would
+  // break every POST/PUT (chat, session create, toggles) while same-origin GETs
+  // (no Origin header) slip through. Strip Origin/Referer so we present as the
+  // non-browser client we actually are.
+  delete headers.origin
+  delete headers.referer
 
   if (service.token) {
     headers.authorization = `Bearer ${service.token}`
@@ -744,13 +368,49 @@ async function proxyBackendFetch(pathname, backend) {
   return { ok: response.ok, status: response.status, body }
 }
 
+// Re-resolve the backend/control descriptors on a short TTL so the bridge
+// follows a Hermes restart (new port/token written to a descriptor) without
+// needing its own restart. Env-var config is constant, so it stays pinned by
+// design; descriptor-file config becomes live. Resolution never throws — a
+// half-written or invalid descriptor keeps the last known-good value.
+const RESOLVE_TTL_MS = 2000
+
+function makeResolver(resolve, label) {
+  let cache = { at: 0, value: undefined }
+  let lastKey
+
+  return function getService() {
+    const now = Date.now()
+
+    if (cache.value !== undefined && now - cache.at < RESOLVE_TTL_MS) {
+      return cache.value
+    }
+
+    let value
+
+    try {
+      value = resolve()
+    } catch {
+      value = cache.value ?? null
+    }
+
+    cache = { at: now, value }
+    const key = value ? `${value.baseUrl}|${value.source}` : 'none'
+
+    if (key !== lastKey) {
+      lastKey = key
+      console.log(`[hermes-mobile] ${label} → ${value ? `${value.baseUrl} (${value.source})` : 'not configured'}`)
+    }
+
+    return value
+  }
+}
+
+const getBackend = makeResolver(resolveBackend, 'backend')
+const getControl = makeResolver(resolveControl, 'control')
+
 const host = resolveHost()
 const port = Number.parseInt(process.env.HERMES_MOBILE_PORT || process.env.PORT || String(DEFAULT_PORT), 10)
-const backend = resolveBackend()
-const control = resolveControl()
-const mobileSessionPruneTimer = setInterval(pruneMobileSessions, Math.min(MOBILE_SESSION_IDLE_MS, 5 * 60 * 1000))
-
-mobileSessionPruneTimer.unref?.()
 
 if (!Number.isFinite(port) || port <= 0 || port > 65535) {
   throw new Error(`Invalid HERMES_MOBILE_PORT: ${process.env.HERMES_MOBILE_PORT}`)
@@ -764,28 +424,24 @@ const server = http.createServer(async (req, res) => {
       sendJson(res, 200, {
         app: 'hermes-mobile',
         bind: { host, port, tailscaleIp: findTailscaleIp() },
-        backend: publicServiceDescriptor(backend),
-        control: publicServiceDescriptor(control)
+        backend: publicServiceDescriptor(getBackend()),
+        control: publicServiceDescriptor(getControl())
       })
       return
     }
 
     if (url.pathname === '/mobile-api/backend-status') {
-      sendJson(res, 200, await proxyBackendFetch('/api/status', backend))
+      sendJson(res, 200, await proxyBackendFetch('/api/status', getBackend()))
       return
     }
 
     if (url.pathname.startsWith(`${PROXY_PREFIX}/`) || url.pathname === PROXY_PREFIX) {
-      if (await handleMobileBackendCompat(req, res, backend)) {
-        return
-      }
-
-      proxyToService(req, res, backend, PROXY_PREFIX, 'backend')
+      proxyToService(req, res, getBackend(), PROXY_PREFIX, 'backend')
       return
     }
 
     if (url.pathname.startsWith(`${CONTROL_PROXY_PREFIX}/`) || url.pathname === CONTROL_PROXY_PREFIX) {
-      proxyToService(req, res, control, CONTROL_PROXY_PREFIX, 'control')
+      proxyToService(req, res, getControl(), CONTROL_PROXY_PREFIX, 'control')
       return
     }
 
@@ -805,25 +461,15 @@ server.on('error', error => {
 
 server.listen({ host, port }, () => {
   const family = net.isIPv6(host) ? `[${host}]` : host
+  const backend = getBackend()
+  const control = getControl()
   console.log(`[hermes-mobile] listening on http://${family}:${port}`)
   console.log(`[hermes-mobile] backend ${backend ? `${backend.baseUrl} (${backend.source})` : 'not configured'}`)
   console.log(`[hermes-mobile] control ${control ? `${control.baseUrl} (${control.source})` : 'not configured'}`)
+  console.log('[hermes-mobile] backend re-resolves per request — update a descriptor to follow a Hermes restart without restarting the bridge.')
 
   if (host === DEFAULT_HOST) {
     console.log('[hermes-mobile] Tailscale HTTPS production pattern:')
     console.log(`  tailscale serve --bg https / http://${DEFAULT_HOST}:${port}`)
   }
 })
-
-function closeMobileSessions() {
-  clearInterval(mobileSessionPruneTimer)
-
-  for (const session of mobileSessions.values()) {
-    session.gateway.close()
-  }
-
-  mobileSessions.clear()
-}
-
-process.once('SIGINT', closeMobileSessions)
-process.once('SIGTERM', closeMobileSessions)
