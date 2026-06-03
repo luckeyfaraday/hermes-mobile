@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron'
+const { contextBridge, ipcRenderer } = require('electron')
 
 contextBridge.exposeInMainWorld('hermesHost', {
   configureServe: () => ipcRenderer.invoke('tailscale:serve'),

@@ -21,6 +21,14 @@ const els = {
 
 let currentPhoneUrl = ''
 
+function hostApi() {
+  if (!window.hermesHost) {
+    throw new Error('Electron preload API is unavailable. Restart Hermes Mobile Host after reinstalling the latest build.')
+  }
+
+  return window.hermesHost
+}
+
 function log(line) {
   const stamp = new Date().toLocaleTimeString()
   els.log.textContent = [`[${stamp}] ${line}`, els.log.textContent].filter(Boolean).join('\n')
@@ -78,7 +86,7 @@ async function refreshStatus() {
   setBusy(true)
 
   try {
-    const status = await window.hermesHost.readStatus()
+    const status = await hostApi().readStatus()
     renderStatus(status)
     log('Status refreshed.')
   } catch (error) {
@@ -93,7 +101,7 @@ els.backendForm.addEventListener('submit', async event => {
   setBusy(true)
 
   try {
-    const result = await window.hermesHost.saveBackend({
+    const result = await hostApi().saveBackend({
       baseUrl: els.backendUrl.value,
       token: els.backendToken.value
     })
@@ -112,7 +120,7 @@ els.configureServe.addEventListener('click', async () => {
   setBusy(true)
 
   try {
-    const result = await window.hermesHost.configureServe()
+    const result = await hostApi().configureServe()
     log(result.ok ? 'Tailscale HTTPS Serve configured.' : result.stderr || result.error || 'Unable to configure Tailscale Serve.')
     await refreshStatus()
   } catch (error) {
@@ -124,12 +132,12 @@ els.configureServe.addEventListener('click', async () => {
 
 els.openUrl.addEventListener('click', () => {
   if (currentPhoneUrl) {
-    window.hermesHost.openUrl(currentPhoneUrl)
+    hostApi().openUrl(currentPhoneUrl)
   }
 })
 
 els.tailscaleDownload.addEventListener('click', () => {
-  window.hermesHost.openDownload()
+  hostApi().openDownload()
 })
 
 els.refresh.addEventListener('click', refreshStatus)

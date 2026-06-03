@@ -184,7 +184,7 @@ async function createMainWindow() {
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
-      preload: appPath('preload.mjs')
+      preload: appPath('preload.cjs')
     }
   })
 
