@@ -1,4 +1,4 @@
-const CACHE = 'hermes-mobile-v3'
+const CACHE = 'hermes-mobile-v5'
 const SHELL = ['/', '/app.js', '/styles.css', '/manifest.webmanifest', '/icon.png']
 
 self.addEventListener('install', event => {
