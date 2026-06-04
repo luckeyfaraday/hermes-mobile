@@ -1,9 +1,9 @@
 /* ============================================================================
    Hermes Mobile Host — onboarding window.
-   Design tokens ported verbatim from the desktop app (apps/desktop/src/styles.css
-   + themes/presets.ts "nous" skin) so this window matches the parent desktop app
-   pixel-for-pixel in spirit. Components are built on the same --ui-* / --dt-*
-   variables used by the PWA shell (../public/styles.css).
+   Design language ported from the *mobile* PWA (../public/styles.css) so the
+   setup window looks and feels like the phone app it pairs with: the same
+   --ui-* / --dt-* "nous" tokens, the glassy blurred chrome, the faint top
+   sheen, list-row status cards, tone badges, glass inputs and pill buttons.
    ============================================================================ */
 
 :root {
@@ -20,6 +20,7 @@
   --theme-sidebar-seed: #f3f7ff;
   --theme-card-seed: #ffffff;
   --theme-elevated-seed: #ffffff;
+  --theme-bubble-seed: color-mix(in srgb, #0053fd 6%, #ffffff);
   --theme-neutral-chrome: #f3f3f3;
   --theme-neutral-sidebar: #f3f3f3;
   --theme-neutral-card: #fcfcfc;
@@ -27,6 +28,7 @@
   --theme-mix-sidebar: 100%;
   --theme-mix-card: 22%;
   --theme-mix-elevated: 28%;
+  --theme-mix-bubble: 0%;
   --theme-fill-primary-accent-mix: 16%;
   --theme-fill-secondary-accent-mix: 11%;
   --theme-fill-tertiary-accent-mix: 8%;
@@ -35,12 +37,14 @@
   --theme-stroke-secondary-accent-mix: 16%;
   --theme-stroke-tertiary-accent-mix: 10%;
   --theme-row-hover-accent-mix: 4%;
+  --theme-row-active-accent-mix: 8%;
   --theme-control-hover-accent-mix: 6%;
   --theme-control-active-accent-mix: 8%;
 
-  /* ── Derived UI palette (identical color-mix chain to desktop) ─────────── */
+  /* ── Derived UI palette (identical color-mix chain to the app) ─────────── */
   --ui-base: var(--theme-foreground);
   --ui-accent: var(--theme-midground);
+  --ui-accent-secondary: var(--theme-primary);
   --ui-red: #cf2d56;
   --ui-yellow: #c08532;
   --ui-green: #1f8a65;
@@ -54,6 +58,7 @@
   --ui-bg-tertiary: color-mix(in srgb, var(--ui-accent) var(--theme-fill-tertiary-accent-mix), color-mix(in srgb, var(--ui-base) 5%, transparent));
   --ui-bg-quaternary: color-mix(in srgb, var(--ui-accent) var(--theme-fill-quaternary-accent-mix), color-mix(in srgb, var(--ui-base) 4%, transparent));
   --ui-row-hover-background: color-mix(in srgb, var(--ui-accent) var(--theme-row-hover-accent-mix), color-mix(in srgb, var(--ui-base) 3%, transparent));
+  --ui-row-active-background: color-mix(in srgb, var(--ui-accent) var(--theme-row-active-accent-mix), color-mix(in srgb, var(--ui-base) 5%, transparent));
   --ui-control-hover-background: color-mix(in srgb, var(--ui-accent) var(--theme-control-hover-accent-mix), color-mix(in srgb, var(--ui-base) 4%, transparent));
   --ui-control-active-background: color-mix(in srgb, var(--ui-accent) var(--theme-control-active-accent-mix), color-mix(in srgb, var(--ui-base) 5%, transparent));
 
@@ -81,25 +86,39 @@
   --dt-input: var(--ui-stroke-primary);
   --dt-ring: var(--ui-stroke-primary);
   --dt-midground: var(--theme-midground);
+  --dt-composer-ring: var(--ui-base);
   --dt-destructive: #cf2d56;
 
   --dt-font-sans: 'Segoe WPC', 'Segoe UI', -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
   --dt-font-mono: 'SF Mono', ui-monospace, 'Cascadia Code', 'JetBrains Mono', Menlo, Consolas, monospace;
+
+  --composer-ring-strength: 1;
 
   /* ── Radii (desktop radius-scalar 0.6) ────────────────────────────────── */
   --radius-sm: 0.3rem;
   --radius-md: 0.45rem;
   --radius-lg: 0.6rem;
   --radius-xl: 0.75rem;
+  --radius-2xl: 0.9rem;
   --radius-pill: 9999px;
 
-  /* ── Shadows (ported) ─────────────────────────────────────────────────── */
+  /* ── Shadows (ported from the app) ────────────────────────────────────── */
   --shadow-xs: 0 0.0625rem 0.125rem color-mix(in srgb, #000 5%, transparent);
   --shadow-sm: 0 0 0 0.0625rem color-mix(in srgb, var(--dt-foreground) 6%, transparent), 0 0.125rem 0.5rem color-mix(in srgb, #000 4%, transparent);
   --shadow-md: 0 0 0 0.0625rem color-mix(in srgb, var(--dt-foreground) 8%, transparent), 0 0.25rem 1rem color-mix(in srgb, #000 8%, transparent), 0 1rem 2rem -1.5rem color-mix(in srgb, #000 18%, transparent);
+  --shadow-composer: 0 0.0625rem 0.125rem color-mix(in srgb, #000 5%, transparent);
+  --shadow-composer-focus:
+    0 0 0 0.125rem color-mix(in srgb, var(--dt-composer-ring) calc(10% * var(--composer-ring-strength)), transparent),
+    0 0 0 0.0625rem color-mix(in srgb, var(--dt-composer-ring) calc(22% * var(--composer-ring-strength)), transparent),
+    0 0.25rem 0.875rem color-mix(in srgb, #000 8%, transparent),
+    0 0.75rem 2rem -1.25rem color-mix(in srgb, #000 14%, transparent);
+
+  --topbar-height: 3.25rem;
 }
 
-/* ── Dark mode (nous darkColors + dark mix knobs, ported from applyTheme) ── */
+/* ── Dark mode (nous darkColors + dark mix knobs) ─────────────────────────
+   The window follows the OS appearance (Electron nativeTheme), so dark mode is
+   driven purely by prefers-color-scheme rather than a runtime class toggle. */
 @media (prefers-color-scheme: dark) {
   :root {
     color-scheme: dark;
@@ -114,6 +133,7 @@
     --theme-sidebar-seed: #09286f;
     --theme-card-seed: #12378f;
     --theme-elevated-seed: #123a96;
+    --theme-bubble-seed: #143b91;
 
     --theme-mix-chrome: 74%;
     --theme-mix-card: 38%;
@@ -131,7 +151,10 @@
     --dt-border: #3158ad;
     --dt-input: #0b2566;
     --dt-ring: #ffe6cb;
+    --dt-composer-ring: #ffe6cb;
     --dt-destructive: #c0473a;
+
+    --composer-ring-strength: 1.3;
   }
 }
 
@@ -147,33 +170,35 @@ body {
   height: 100%;
 }
 
+html {
+  background: var(--ui-chat-surface-background);
+  overflow: hidden;
+}
+
 body {
   margin: 0;
-  min-height: 100vh;
+  height: 100vh;
   background: var(--ui-chat-surface-background);
   color: var(--dt-foreground);
   font-family: var(--dt-font-sans);
-  font-size: 0.8125rem;
+  font-size: 0.9375rem;
   line-height: 1.5;
-  letter-spacing: 0;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
-}
-
-/* faint top sheen, like the desktop chat surface */
-body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  background: linear-gradient(180deg, color-mix(in srgb, var(--ui-base) 4%, transparent), transparent 24rem);
-  opacity: 0.5;
-  z-index: 0;
 }
 
 button,
 input {
   font: inherit;
+  color: inherit;
+}
+
+button {
+  -webkit-appearance: none;
+  appearance: none;
+  border: none;
+  background: none;
+  cursor: pointer;
   color: inherit;
 }
 
@@ -199,26 +224,76 @@ input {
 }
 
 /* ============================================================================
-   Shell
+   App shell — phone-style column with the app's faint top sheen
    ============================================================================ */
-.shell {
-  position: relative;
-  z-index: 1;
-  width: min(60rem, 100%);
-  margin: 0 auto;
-  padding: 2rem 1.75rem 2.5rem;
+#app {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--ui-chat-surface-background);
+  isolation: isolate;
 }
 
-.top {
+#app::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--ui-base) 4%, transparent), transparent 24rem);
+  opacity: 0.5;
+  z-index: 0;
+}
+
+/* ── Top bar ──────────────────────────────────────────────────────────── */
+.topbar {
+  position: relative;
+  z-index: 5;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 1.5rem;
-  margin-bottom: 1.5rem;
+  gap: 0.5rem;
+  height: var(--topbar-height);
+  padding: 0 0.625rem 0 0.875rem;
+  flex-shrink: 0;
+  background: color-mix(in srgb, var(--ui-chat-surface-background) 86%, transparent);
+  backdrop-filter: blur(0.75rem) saturate(1.1);
+  -webkit-backdrop-filter: blur(0.75rem) saturate(1.1);
+  border-bottom: 0.0625rem solid color-mix(in srgb, var(--ui-base) 7%, transparent);
 }
 
-.eyebrow {
-  margin: 0 0 0.375rem;
+.topbar__brand {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  min-width: 0;
+}
+
+.topbar__brand .logo {
+  width: 1.875rem;
+  height: 1.875rem;
+  flex-shrink: 0;
+  border-radius: var(--radius-md);
+  object-fit: cover;
+  box-shadow: 0 0 0 0.0625rem color-mix(in srgb, var(--ui-base) 10%, transparent);
+}
+
+.topbar__titles {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.1;
+}
+
+.topbar__titles .name {
+  font-weight: 700;
+  font-size: 1rem;
+  letter-spacing: -0.01em;
+  color: var(--dt-foreground);
+}
+
+.topbar__titles .kicker {
   font-size: 0.6875rem;
   font-weight: 600;
   letter-spacing: 0.04em;
@@ -226,96 +301,155 @@ input {
   color: var(--ui-text-tertiary);
 }
 
+/* ── Icon button (matches the app's .iconbtn) ─────────────────────────── */
+.iconbtn {
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  flex-shrink: 0;
+  border-radius: var(--radius-md);
+  color: var(--ui-text-secondary);
+  font-size: 1.1875rem;
+  transition: background-color 0.12s ease, color 0.12s ease, transform 0.08s ease;
+}
+.iconbtn:hover {
+  background: var(--ui-control-hover-background);
+  color: var(--dt-foreground);
+}
+.iconbtn:active {
+  background: var(--ui-control-active-background);
+  color: var(--dt-foreground);
+  transform: scale(0.94);
+}
+.iconbtn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 0.1875rem color-mix(in srgb, var(--dt-primary) 18%, transparent);
+}
+.iconbtn:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+.iconbtn:disabled .iconbtn__glyph {
+  animation: spin 0.9s linear infinite;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ============================================================================
+   Scroll body
+   ============================================================================ */
+.scroll {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  width: 100%;
+  max-width: 30rem;
+  margin: 0 auto;
+  padding: 0.5rem 1rem 2.5rem;
+}
+
+/* ── Intro hero (mirrors the app's empty-state intro) ─────────────────── */
+.hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1.75rem 1rem 1.5rem;
+  text-align: center;
+}
+.hero__logo {
+  width: 4rem;
+  height: 4rem;
+  border-radius: var(--radius-xl);
+  object-fit: cover;
+  box-shadow: var(--shadow-md);
+}
+.hero__title {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--dt-foreground);
+}
+.hero__sub {
+  margin: 0;
+  max-width: 22rem;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  color: var(--ui-text-tertiary);
+}
+
+/* ============================================================================
+   Sections (mirror the app's .psection / .psection__head)
+   ============================================================================ */
+.psection {
+  margin-bottom: 1.25rem;
+}
+.psection__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0 0.25rem 0.5rem;
+}
+.psection__head > span:first-child {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ui-text-tertiary);
+}
+.psection__note {
+  min-width: 0;
+  font-family: var(--dt-font-mono);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: var(--ui-text-quaternary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 h1,
-h2,
 p {
   margin: 0;
 }
 
-h1 {
-  font-size: 1.5rem;
-  font-weight: 600;
-  line-height: 1.15;
-  letter-spacing: -0.015em;
-  color: var(--dt-foreground);
-}
-
-h2 {
-  font-size: 0.8125rem;
-  font-weight: 600;
-  line-height: 1.3;
-  letter-spacing: -0.005em;
-  color: var(--dt-foreground);
-}
-
-/* ── Icon button ──────────────────────────────────────────────────────── */
-.icon-button {
-  display: grid;
-  place-items: center;
-  width: 2rem;
-  height: 2rem;
-  flex-shrink: 0;
-  border: 0.0625rem solid var(--ui-stroke-secondary);
-  border-radius: var(--radius-md);
-  background: var(--ui-bg-tertiary);
-  color: var(--ui-text-secondary);
-  font-size: 1rem;
-  cursor: pointer;
-  transition: background-color 0.12s ease, color 0.12s ease, border-color 0.12s ease, transform 0.08s ease;
-}
-.icon-button:hover {
-  background: var(--ui-control-hover-background);
-  color: var(--dt-foreground);
-}
-.icon-button:active {
-  transform: scale(0.94);
-}
-.icon-button:focus-visible {
-  outline: none;
-  border-color: color-mix(in srgb, var(--dt-primary) 50%, transparent);
-  box-shadow: 0 0 0 0.1875rem color-mix(in srgb, var(--dt-primary) 18%, transparent);
-}
-.icon-button:disabled {
-  cursor: not-allowed;
-  opacity: 0.45;
-}
-
 /* ============================================================================
-   Surfaces
+   Cards
    ============================================================================ */
-.status-panel,
-.setup-pane,
-.log-pane {
-  background: var(--dt-card);
-  border: 0.0625rem solid var(--ui-stroke-secondary);
+.card {
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
+  border: 0.0625rem solid var(--ui-stroke-tertiary);
+  background: color-mix(in srgb, var(--dt-card) 50%, transparent);
+  padding: 1rem;
 }
 
-.status-grid {
-  display: grid;
-  gap: 0.75rem;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  margin-bottom: 0.75rem;
-}
-
-.status-panel {
-  min-height: 6.5rem;
-  padding: 1rem 1.125rem;
-}
-
-.status-head {
+/* ── Status list rows (mirror the app's .lrow) ────────────────────────── */
+.srow {
   display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 0.625rem;
+  align-items: flex-start;
+  gap: 0.75rem;
+  min-height: 3.25rem;
+  padding: 0.75rem;
+  border-radius: var(--radius-lg);
+  border: 0.0625rem solid var(--ui-stroke-tertiary);
+  background: color-mix(in srgb, var(--dt-card) 50%, transparent);
+}
+.srow + .srow {
+  margin-top: 0.375rem;
 }
 
 .status-dot {
-  display: inline-block;
-  width: 0.5rem;
-  height: 0.5rem;
   flex-shrink: 0;
+  width: 0.625rem;
+  height: 0.625rem;
+  margin-top: 0.3125rem;
   border-radius: 9999px;
   background: var(--ui-yellow);
   box-shadow: 0 0 0 0.1875rem color-mix(in srgb, var(--ui-yellow) 16%, transparent);
@@ -333,159 +467,153 @@ h2 {
   box-shadow: 0 0 0 0.1875rem color-mix(in srgb, var(--ui-yellow) 16%, transparent);
 }
 
-.status-panel p,
-.url-block p {
-  color: var(--ui-text-secondary);
+.srow__body {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+.srow__title {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--dt-foreground);
+}
+.srow__text {
   font-size: 0.8125rem;
   line-height: 1.45;
-}
-
-/* ============================================================================
-   Workspace
-   ============================================================================ */
-.workspace {
-  display: grid;
-  gap: 0.75rem;
-  grid-template-columns: minmax(18rem, 0.86fr) minmax(22rem, 1.14fr);
-}
-
-.setup-pane {
-  padding: 1.25rem 1.375rem;
-}
-
-.section-title {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 1.125rem;
-}
-
-.section-title span {
-  flex-shrink: 0;
-  min-width: 0;
-  max-width: 60%;
-  padding: 0.1875rem 0.5rem;
-  border: 0.0625rem solid var(--ui-stroke-tertiary);
-  border-radius: var(--radius-pill);
-  background: var(--ui-bg-tertiary);
   color: var(--ui-text-tertiary);
+}
+
+/* ── Status badge (mirrors the app's .badge) ──────────────────────────── */
+.badge {
+  display: inline-block;
+  max-width: 100%;
+  padding: 0.1875rem 0.5rem;
+  border-radius: var(--radius-pill);
   font-size: 0.6875rem;
   font-weight: 500;
+  border: 0.0625rem solid var(--ui-stroke-tertiary);
+  color: var(--ui-text-secondary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-
-label {
-  display: grid;
-  gap: 0.375rem;
-  margin-bottom: 0.875rem;
+.badge:empty {
+  display: none;
 }
 
-label span {
-  color: var(--ui-text-secondary);
+/* ============================================================================
+   Form fields (glass inputs, like the app's composer)
+   ============================================================================ */
+.field {
+  display: grid;
+  gap: 0.375rem;
+}
+.field + .field {
+  margin-top: 0.875rem;
+}
+.field__label {
   font-size: 0.75rem;
-  font-weight: 550;
+  font-weight: 600;
+  color: var(--ui-text-secondary);
 }
 
 input {
   width: 100%;
-  height: 2.25rem;
-  padding: 0 0.75rem;
-  border: 0.0625rem solid var(--dt-input);
-  border-radius: var(--radius-md);
-  background: var(--ui-bg-input);
+  height: 2.75rem;
+  padding: 0 0.875rem;
+  border: 0.0625rem solid var(--ui-stroke-secondary);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--dt-card) 72%, transparent);
   color: var(--dt-foreground);
   outline: none;
-  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+  box-shadow: var(--shadow-composer);
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
 }
-
 input::placeholder {
-  color: var(--ui-text-quaternary);
+  color: var(--ui-text-tertiary);
 }
-
 input:focus {
-  border-color: color-mix(in srgb, var(--dt-primary) 55%, transparent);
-  box-shadow: 0 0 0 0.1875rem color-mix(in srgb, var(--dt-primary) 16%, transparent);
+  background: var(--dt-card);
+  border-color: color-mix(in srgb, var(--dt-composer-ring) calc(40% * var(--composer-ring-strength)), transparent);
+  box-shadow: var(--shadow-composer-focus);
 }
 
 /* ============================================================================
-   Buttons
+   Buttons (touch-friendly pills, like the app)
    ============================================================================ */
-.actions {
+.btnrow {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
-  margin-top: 1.125rem;
+  margin-top: 1rem;
 }
 
-button {
+.btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 2.125rem;
-  padding: 0 0.875rem;
+  min-height: 2.75rem;
+  padding: 0 1.125rem;
   border: 0.0625rem solid var(--ui-stroke-secondary);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-pill);
   background: var(--ui-bg-tertiary);
   color: var(--ui-text-primary);
-  font-weight: 500;
-  cursor: pointer;
-  transition: background-color 0.12s ease, color 0.12s ease, border-color 0.12s ease, transform 0.08s ease, box-shadow 0.12s ease;
+  font-size: 0.875rem;
+  font-weight: 550;
+  transition: background-color 0.12s ease, color 0.12s ease, border-color 0.12s ease, transform 0.08s ease, box-shadow 0.12s ease, opacity 0.15s ease;
 }
-
-button:hover {
+.btn:hover {
   background: var(--ui-control-hover-background);
   color: var(--dt-foreground);
 }
-
-button:active {
-  transform: scale(0.985);
+.btn:active {
+  transform: scale(0.97);
 }
-
-button:focus-visible {
+.btn:focus-visible {
   outline: none;
-  border-color: color-mix(in srgb, var(--dt-primary) 50%, transparent);
   box-shadow: 0 0 0 0.1875rem color-mix(in srgb, var(--dt-primary) 18%, transparent);
 }
-
-button:disabled {
+.btn:disabled {
   cursor: not-allowed;
   opacity: 0.45;
 }
 
-button.primary {
+.btn--primary {
   border-color: var(--dt-primary);
   background: var(--dt-primary);
   color: var(--dt-primary-foreground);
   box-shadow: var(--shadow-xs);
 }
-
-button.primary:hover {
+.btn--primary:hover {
   background: color-mix(in srgb, var(--dt-primary) 88%, #000);
   border-color: color-mix(in srgb, var(--dt-primary) 88%, #000);
   color: var(--dt-primary-foreground);
+}
+.btn--primary:disabled {
+  background: var(--dt-primary);
+  border-color: var(--dt-primary);
 }
 
 /* ============================================================================
    Phone access / QR
    ============================================================================ */
-.phone-output {
-  display: grid;
-  align-items: center;
-  gap: 1.375rem;
-  grid-template-columns: 13rem minmax(0, 1fr);
+.card--phone {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.875rem;
 }
 
 .qr-wrap {
   display: grid;
   place-items: center;
+  align-self: center;
   aspect-ratio: 1;
-  width: 13rem;
+  width: min(13rem, 100%);
   overflow: hidden;
   border: 0.0625rem solid var(--ui-stroke-secondary);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-xl);
   background: var(--ui-bg-input);
   box-shadow: var(--shadow-xs);
 }
@@ -494,73 +622,44 @@ button.primary:hover {
 .qr-wrap:has(img) {
   background: #ffffff;
 }
-
 .qr-wrap img {
   display: block;
-  width: 13rem;
-  height: 13rem;
+  width: 100%;
+  height: 100%;
 }
-
 .qr-empty {
   color: var(--ui-text-quaternary);
   font-size: 0.8125rem;
 }
 
-.url-block {
-  min-width: 0;
-}
-
-.url-block p {
-  padding: 0.625rem 0.75rem;
-  border: 0.0625rem solid var(--dt-input);
-  border-radius: var(--radius-md);
+.urlpill {
+  padding: 0.625rem 0.875rem;
+  border: 0.0625rem solid var(--ui-stroke-secondary);
+  border-radius: var(--radius-lg);
   background: var(--ui-bg-input);
   color: var(--dt-foreground);
   font-family: var(--dt-font-mono);
   font-size: 0.75rem;
+  line-height: 1.45;
+  text-align: center;
   overflow-wrap: anywhere;
 }
 
 /* ============================================================================
-   Log
+   Setup log
    ============================================================================ */
-.log-pane {
-  margin-top: 0.75rem;
-  padding: 1rem 1.375rem 1.125rem;
+.card--log {
+  padding: 0.875rem;
 }
-
-.log-pane h2 {
-  margin-bottom: 0.75rem;
-}
-
-pre {
+.card--log pre {
   margin: 0;
-  max-height: 7rem;
+  max-height: 8rem;
   overflow: auto;
   white-space: pre-wrap;
   color: var(--ui-text-tertiary);
   font-family: var(--dt-font-mono);
   font-size: 0.6875rem;
-  line-height: 1.55;
-}
-
-/* ============================================================================
-   Responsive
-   ============================================================================ */
-@media (max-width: 52rem) {
-  .shell {
-    padding: 1.25rem;
-  }
-
-  .status-grid,
-  .workspace,
-  .phone-output {
-    grid-template-columns: 1fr;
-  }
-
-  .qr-wrap {
-    width: min(13rem, 100%);
-  }
+  line-height: 1.6;
 }
 
 @media (prefers-reduced-motion: reduce) {
