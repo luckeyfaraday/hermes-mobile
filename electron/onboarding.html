@@ -4,93 +4,120 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="light dark" />
-    <meta name="theme-color" content="#0a0a0a" />
+    <meta name="theme-color" content="#f8faff" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0d2f86" media="(prefers-color-scheme: dark)" />
     <title>Hermes Mobile Host</title>
     <link rel="stylesheet" href="./onboarding.css" />
   </head>
   <body>
-    <main class="shell">
-      <section class="top">
-        <div>
-          <p class="eyebrow">Hermes Mobile Host</p>
-          <h1>Setup Mobile Access</h1>
+    <div id="app">
+      <!-- Top bar — mirrors the mobile app's glassy, blurred chrome -->
+      <header class="topbar">
+        <div class="topbar__brand">
+          <img class="logo" src="../public/icon.png" alt="Hermes" />
+          <div class="topbar__titles">
+            <span class="name">Hermes</span>
+            <span class="kicker">Mobile Host</span>
+          </div>
         </div>
-        <button id="refresh" class="icon-button" type="button" title="Refresh status" aria-label="Refresh status">
-          <span aria-hidden="true">↻</span>
+        <button id="refresh" class="iconbtn" type="button" title="Refresh status" aria-label="Refresh status">
+          <span class="iconbtn__glyph" aria-hidden="true">↻</span>
         </button>
-      </section>
+      </header>
 
-      <section class="status-grid" aria-live="polite">
-        <article class="status-panel">
-          <div class="status-head">
+      <div class="scroll">
+        <!-- Intro hero — same centered logo + title + sub treatment as the app -->
+        <section class="hero">
+          <img class="hero__logo" src="../public/icon.png" alt="" aria-hidden="true" />
+          <h1 class="hero__title">Set up mobile access</h1>
+          <p class="hero__sub">
+            Link your phone to this computer so you can pick up your Hermes
+            sessions anywhere on your Tailnet.
+          </p>
+        </section>
+
+        <!-- Status — list rows styled like the app's settings/tool rows -->
+        <section class="psection" aria-live="polite">
+          <div class="psection__head">
+            <span>Status</span>
+          </div>
+
+          <div class="srow">
             <span class="status-dot" id="bridge-dot"></span>
-            <h2>Bridge</h2>
-          </div>
-          <p id="bridge-text">Checking local host...</p>
-        </article>
-
-        <article class="status-panel">
-          <div class="status-head">
-            <span class="status-dot" id="backend-dot"></span>
-            <h2>Hermes</h2>
-          </div>
-          <p id="backend-text">Checking API server...</p>
-        </article>
-
-        <article class="status-panel">
-          <div class="status-head">
-            <span class="status-dot" id="tailscale-dot"></span>
-            <h2>Tailscale</h2>
-          </div>
-          <p id="tailscale-text">Checking device state...</p>
-        </article>
-      </section>
-
-      <section class="workspace">
-        <form id="backend-form" class="setup-pane">
-          <div class="section-title">
-            <h2>Hermes Backend</h2>
-            <span id="descriptor-path"></span>
-          </div>
-          <label>
-            <span>API server URL</span>
-            <input id="backend-url" name="baseUrl" autocomplete="off" value="http://127.0.0.1:8642" />
-          </label>
-          <label>
-            <span>API server key</span>
-            <input id="backend-token" name="token" type="password" autocomplete="off" />
-          </label>
-          <div class="actions">
-            <button class="primary" type="submit">Save Backend</button>
-          </div>
-        </form>
-
-        <section class="setup-pane">
-          <div class="section-title">
-            <h2>Phone Access</h2>
-            <span id="serve-state"></span>
-          </div>
-          <div class="phone-output">
-            <div id="qr-wrap" class="qr-wrap">
-              <div class="qr-empty">No URL yet</div>
+            <div class="srow__body">
+              <span class="srow__title">Bridge</span>
+              <p class="srow__text" id="bridge-text">Checking local host…</p>
             </div>
-            <div class="url-block">
-              <p id="phone-url">Connect Tailscale to get a phone URL.</p>
-              <div class="actions">
-                <button id="configure-serve" class="primary" type="button">Configure HTTPS</button>
-                <button id="open-url" type="button">Open</button>
-                <button id="tailscale-download" type="button">Get Tailscale</button>
-              </div>
+          </div>
+
+          <div class="srow">
+            <span class="status-dot" id="backend-dot"></span>
+            <div class="srow__body">
+              <span class="srow__title">Hermes</span>
+              <p class="srow__text" id="backend-text">Checking API server…</p>
+            </div>
+          </div>
+
+          <div class="srow">
+            <span class="status-dot" id="tailscale-dot"></span>
+            <div class="srow__body">
+              <span class="srow__title">Tailscale</span>
+              <p class="srow__text" id="tailscale-text">Checking device state…</p>
             </div>
           </div>
         </section>
-      </section>
 
-      <section class="log-pane">
-        <h2>Setup Log</h2>
-        <pre id="log"></pre>
-      </section>
-    </main>
+        <!-- Hermes backend form -->
+        <section class="psection">
+          <div class="psection__head">
+            <span>Hermes Backend</span>
+            <span class="psection__note" id="descriptor-path"></span>
+          </div>
+          <form id="backend-form" class="card">
+            <label class="field">
+              <span class="field__label">API server URL</span>
+              <input id="backend-url" name="baseUrl" autocomplete="off" value="http://127.0.0.1:8642" />
+            </label>
+            <label class="field">
+              <span class="field__label">API server key</span>
+              <input id="backend-token" name="token" type="password" autocomplete="off" placeholder="Paste your server key" />
+            </label>
+            <div class="btnrow">
+              <button class="btn btn--primary" type="submit">Save backend</button>
+            </div>
+          </form>
+        </section>
+
+        <!-- Phone access / QR -->
+        <section class="psection">
+          <div class="psection__head">
+            <span>Phone Access</span>
+            <span class="badge" id="serve-state"></span>
+          </div>
+          <div class="card card--phone">
+            <div id="qr-wrap" class="qr-wrap">
+              <div class="qr-empty">No URL yet</div>
+            </div>
+            <p id="phone-url" class="urlpill">Connect Tailscale to get a phone URL.</p>
+            <div class="btnrow">
+              <button id="configure-serve" class="btn btn--primary" type="button">Configure HTTPS</button>
+              <button id="open-url" class="btn" type="button">Open</button>
+              <button id="tailscale-download" class="btn" type="button">Get Tailscale</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- Setup log -->
+        <section class="psection">
+          <div class="psection__head">
+            <span>Setup Log</span>
+          </div>
+          <div class="card card--log">
+            <pre id="log"></pre>
+          </div>
+        </section>
+      </div>
+    </div>
     <script src="./onboarding.js"></script>
   </body>
 </html>
