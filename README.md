@@ -7,12 +7,12 @@
 <p align="center">
   <a href="https://github.com/luckeyfaraday/hermes-mobile/actions/workflows/desktop-build.yml"><img alt="Desktop Builds" src="https://github.com/luckeyfaraday/hermes-mobile/actions/workflows/desktop-build.yml/badge.svg" /></a>
   <img alt="Version 0.1.1" src="https://img.shields.io/badge/version-0.1.1-blue" />
-  <img alt="Node.js >=20" src="https://img.shields.io/badge/node-%3E%3D20.0.0-339933?logo=node.js&logoColor=white" />
+  <img alt="Node.js 20+" src="https://img.shields.io/badge/node-20%2B-339933?logo=node.js&amp;logoColor=white" />
   <img alt="Private package" src="https://img.shields.io/badge/npm-private-red" />
   <img alt="License: UNLICENSED" src="https://img.shields.io/badge/license-UNLICENSED-lightgrey" />
-  <img alt="PWA" src="https://img.shields.io/badge/PWA-installable-5A0FC8?logo=pwa&logoColor=white" />
-  <img alt="Electron" src="https://img.shields.io/badge/Electron-host-47848F?logo=electron&logoColor=white" />
-  <img alt="Tailscale" src="https://img.shields.io/badge/Tailscale-Serve-242424?logo=tailscale&logoColor=white" />
+  <img alt="PWA" src="https://img.shields.io/badge/PWA-installable-5A0FC8?logo=pwa&amp;logoColor=white" />
+  <img alt="Electron" src="https://img.shields.io/badge/Electron-host-47848F?logo=electron&amp;logoColor=white" />
+  <img alt="Tailscale" src="https://img.shields.io/badge/Tailscale-Serve-242424?logo=tailscale&amp;logoColor=white" />
 </p>
 
 <p align="center">
