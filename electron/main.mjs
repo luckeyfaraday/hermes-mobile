@@ -11,6 +11,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const DEFAULT_BACKEND_URL = 'http://127.0.0.1:8642'
 const DEFAULT_BRIDGE_URL = 'http://127.0.0.1:5274'
 const TAILSCALE_DOWNLOAD_URL = 'https://tailscale.com/download'
+const TAILSCALE_SERVE_PORT = '5274'
 
 let mainWindow
 let bridge
@@ -103,7 +104,7 @@ async function tailscaleStatus() {
     deviceName: self.HostName || '',
     tailnet: parsed.CurrentTailnet?.Name || parsed.User?.LoginName || '',
     dnsName,
-    httpsUrl: dnsName ? `https://${dnsName}` : ''
+    httpsUrl: dnsName ? `https://${dnsName}:${TAILSCALE_SERVE_PORT}` : ''
   }
 }
 
@@ -118,13 +119,13 @@ async function serveStatus() {
 }
 
 async function configureServe() {
-  const current = await execTailscale(['serve', '--bg', DEFAULT_BRIDGE_URL], { timeout: 20_000 })
+  const current = await execTailscale(['serve', '--bg', '--https=' + TAILSCALE_SERVE_PORT, DEFAULT_BRIDGE_URL], { timeout: 20_000 })
 
   if (current.ok) {
     return current
   }
 
-  const legacy = await execTailscale(['serve', '--bg', 'https', '/', DEFAULT_BRIDGE_URL], { timeout: 20_000 })
+  const legacy = await execTailscale(['serve', '--bg', 'https:' + TAILSCALE_SERVE_PORT, '/', DEFAULT_BRIDGE_URL], { timeout: 20_000 })
 
   if (legacy.ok) {
     return legacy
