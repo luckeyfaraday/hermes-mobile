@@ -488,7 +488,7 @@ export function startHermesMobileServer(options = {}) {
 
       if (host === DEFAULT_HOST) {
         console.log('[hermes-mobile] Tailscale HTTPS production pattern:')
-        console.log(`  tailscale serve --bg https / http://${DEFAULT_HOST}:${port}`)
+        console.log(`  tailscale serve --bg --https=${port} http://${DEFAULT_HOST}:${port}`)
       }
 
       resolve({ server, host, port, url })
